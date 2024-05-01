@@ -1,3 +1,5 @@
+use std::thread::current;
+
 use rand::Rng;
 use hex::encode;
 const MAX_INDEX: u32 = 20;
@@ -52,7 +54,7 @@ impl Position {
         let sqrt_price_at_upper: f64 = price_at_upper.sqrt();
 
         let deposit_token_a_amount = (liquidity as f64 / sqrt_price) - (liquidity as f64 / sqrt_price_at_upper);
-        let deposit_token_b_amount = (liquidity as f64 / sqrt_price) - (liquidity as f64 / sqrt_price_at_lower);
+        let deposit_token_b_amount = (liquidity as f64 * sqrt_price) - (liquidity as f64 * sqrt_price_at_lower);
 
         if (account.a_balance as f64) < deposit_token_a_amount || (account.b_balance as f64) < deposit_token_b_amount  {
             return Err("enough balance".to_string());
@@ -94,7 +96,52 @@ impl Position {
         Ok(Position {account_address: account.address, upper_tick_index, lower_tick_index, liquidity})
     }
 
-    fn close(mut self) {
+    fn close(mut self, mut pool: Pool, mut account: Account) {
+        let current_sqrt_price = pool.sqrt_price;
+        let current_tick_index = pool.current_tick_index;
+        let liquidity = self.liquidity;
+        let mut target_sqrt_price: f64 = 0.0;
+
+        if current_tick_index < self.lower_tick_index {
+            let base: f64 = 1.0001;
+            let price_at_lower = base.powf(self.lower_tick_index as f64);
+            target_sqrt_price = price_at_lower.sqrt();
+        }
+
+        if current_tick_index > self.upper_tick_index {
+            let base: f64 = 1.0001;
+            let price_at_upper = base.powf(self.upper_tick_index as f64);
+            target_sqrt_price = price_at_upper.sqrt();
+        }
+        let a_amount = liquidity as f64 / target_sqrt_price;
+        let b_amount = liquidity as f64 * target_sqrt_price;
+
+        account.a_balance += a_amount;
+        account.b_balance += b_amount;
+
+        let upper_tick_opinion: Option<&mut Tick> = pool.ticks.iter_mut().find(|tick| tick.index == self.upper_tick_index);
+
+        if let Some(tick) = upper_tick_opinion {
+            tick.liquidity_gross -= liquidity;
+            tick.liquidity_net += liquidity as i32;
+
+            if tick.liquidity_gross == 0 {
+                pool.bitmap[self.upper_tick_index as usize] = 0;
+            }
+        }
+
+        let lower_tick_opinion: Option<&mut Tick> = pool.ticks.iter_mut().find(|tick| tick.index == self.lower_tick_index);
+
+        if let Some(tick) = lower_tick_opinion {
+            tick.liquidity_gross -= liquidity;
+            tick.liquidity_net -= liquidity as i32;
+
+            if tick.liquidity_gross == 0 {
+                pool.bitmap[self.lower_tick_index as usize] = 0;
+            }
+        }
+
+        drop(self);
     }
 }
 
