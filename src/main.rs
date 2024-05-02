@@ -224,21 +224,18 @@ impl Account {
             if target_sqrt_price <= next_tick_sqrt_price {
                 // Δy= L*Δ√p
                 let delta_y: f64 = liquidity as f64 * delta_sqrt_p;
-                self.a_balance -= a_amount;
+                let delta_x: f64 = liquidity as f64 / delta_sqrt_p;
+                self.a_balance += delta_x;
                 self.b_balance += delta_y;
                 pool.sqrt_price = target_sqrt_price;
             } else {
                 // next_tick_sqrt_priceを完全に超えたらtickを更新する。
                 if pool.bitmap[(pool.current_tick_index + 1) as usize] == 1 {
-                    let mut delta_y_amount: f64 = 0 as f64;
 
-                    let mut delta_y: f64 =
-                        liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
-                    let mut delta_x: f64 =
-                        liquidity as f64 / (next_tick_sqrt_price - pool.sqrt_price);
+                    let mut delta_y: f64 = liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
+                    let mut delta_x: f64 = liquidity as f64 * (1 as f64 /next_tick_sqrt_price - 1 as f64 /pool.sqrt_price);
 
                     remaining_a_amount -= delta_x;
-                    delta_y_amount += delta_y;
 
                     pool.current_tick_index = pool.current_tick_index + 1;
                     pool.sqrt_price = next_tick_sqrt_price;
@@ -252,16 +249,16 @@ impl Account {
                         liquidity = next_tick.liquidity_gross;
                     }
 
-                    self.a_balance -= remaining_a_amount;
-                    self.b_balance += delta_y_amount;
+                    self.a_balance += delta_x;
+                    self.b_balance += delta_y;
 
                     if pool.bitmap[pool.current_tick_index as usize] == 0 {
                         break;
                     }
                 } else {
-                    let delta_sqrt_p = next_tick_sqrt_price - pool.sqrt_price;
-                    let delta_y: f64 = liquidity as f64 * delta_sqrt_p;
-                    self.a_balance -= a_amount;
+                    let delta_y: f64 = liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
+                    let delta_x: f64 = liquidity as f64 * (1 as f64 /next_tick_sqrt_price - 1 as f64 /pool.sqrt_price);
+                    self.a_balance += delta_x;
                     self.b_balance += delta_y;
                     pool.sqrt_price = next_tick_sqrt_price;
                     break
@@ -294,7 +291,10 @@ fn get_random_token_adddress() -> String {
 fn main() {
     let mut account = Account::new(1000 as f64, 1000 as f64);
     let mut pool = Pool::new();
-    Position::new(&mut pool, &mut account, 19, 10, 100000);
+    // Position::new(&mut pool, &mut account, 19, 10, 100000);
+    Position::new(&mut pool, &mut account, 15, 10, 1000000);
+    println!("{:?}", account);
     account.swap_a_to_b(&mut pool, 100 as f64);
     println!("{:?}", account);
+    println!("{:?}", pool);
 }
