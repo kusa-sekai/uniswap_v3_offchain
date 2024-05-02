@@ -154,7 +154,10 @@ impl Position {
 }
 
 impl Pool {
-    fn new(token_a_address: String, token_b_address: String) -> Self {
+    fn new() -> Self {
+
+        let token_a_address = get_random_token_adddress();
+        let token_b_address = get_random_token_adddress();
         let current_tick_index: u32 = 10;
         let tick_spacing: u32 = 0;
         let bitmap: [u32; 20] = [0; 20];
@@ -278,12 +281,17 @@ fn get_tick(pool: &mut Pool, tick_index: u32) -> Option<&mut Tick> {
     upper_tick_opinion
 }
 
+fn get_random_token_adddress() -> String {
+    let mut rng = rand::thread_rng();
+    let token_address: [u8; 20] = rng.gen();
+    let hex_token_address = encode(token_address);
+    hex_token_address
+}
+
 fn main() {
     let mut account = Account::new(1000 as f64, 1000 as f64);
-    let mut rng = rand::thread_rng();
-    let token_a_address: [u8; 20] = rng.gen();
-    let hex_token_a_address = encode(token_a_address);
-    let token_b_address: [u8; 20] = rng.gen();
-    let hex_token_b_address = encode(token_b_address);
-    let mut pool = Pool::new(hex_token_a_address, hex_token_b_address);
+    let mut pool = Pool::new();
+    Position::new(pool, account, 11, 10, 10);
+    // account.swap_a_to_b(pool, 1 as f64);
+    // println!("{:?}", account.a_balance);
 }
