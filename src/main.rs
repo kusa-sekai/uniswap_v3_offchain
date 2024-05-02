@@ -1,5 +1,3 @@
-use std::thread::current;
-
 use hex::encode;
 use rand::Rng;
 const MAX_INDEX: u32 = 20;
