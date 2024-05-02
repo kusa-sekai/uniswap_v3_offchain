@@ -7,6 +7,8 @@ const MIN_INDEX: u32 = 0;
 
 // INFO: index range is between 0 and 20.
 // INFO: tick_spacing is 1.
+
+#[derive(Debug)]
 struct Pool {
     token_a_address: String,
     token_b_address: String,
@@ -17,12 +19,14 @@ struct Pool {
     ticks: Vec<Tick>,
 }
 
+#[derive(Debug)]
 struct Account {
     address: String,
     a_balance: f64,
     b_balance: f64,
 }
 
+#[derive(Debug)]
 struct Position {
     account_address: String,
     upper_tick_index: u32,
@@ -30,6 +34,7 @@ struct Position {
     liquidity: u32,
 }
 
+#[derive(Debug)]
 struct Tick {
     index: u32,
     liquidity_gross: u32,
@@ -38,8 +43,8 @@ struct Tick {
 
 impl Position {
     fn new(
-        mut pool: Pool,
-        mut account: Account,
+        pool: &mut Pool,
+        account: &mut Account,
         upper_tick_index: u32,
         lower_tick_index: u32,
         liquidity: u32,
@@ -72,7 +77,7 @@ impl Position {
         account.a_balance -= deposit_token_a_amount;
         account.b_balance -= deposit_token_b_amount;
 
-        let upper_tick_opinion = get_tick(&mut pool, upper_tick_index);
+        let upper_tick_opinion = get_tick(pool, upper_tick_index);
 
         if let Some(tick) = upper_tick_opinion {
             tick.liquidity_gross += liquidity;
@@ -86,14 +91,14 @@ impl Position {
             pool.bitmap[upper_tick_index as usize] = 1;
         }
 
-        let lower_tick_opinion = get_tick(&mut pool, lower_tick_index);
+        let lower_tick_opinion = get_tick(pool, lower_tick_index);
 
         if let Some(tick) = lower_tick_opinion {
             tick.liquidity_gross += liquidity;
             tick.liquidity_net += liquidity as i32;
         } else {
             pool.ticks.push(Tick {
-                index: upper_tick_index,
+                index: lower_tick_index,
                 liquidity_gross: liquidity,
                 liquidity_net: liquidity as i32,
             });
@@ -101,7 +106,7 @@ impl Position {
         }
 
         Ok(Position {
-            account_address: account.address,
+            account_address: account.address.clone(),
             upper_tick_index,
             lower_tick_index,
             liquidity,
@@ -191,7 +196,7 @@ impl Account {
         }
     }
 
-    fn swap_a_to_b(mut self, mut pool: Pool, a_amount: f64) -> Result<Self, String> {
+    fn swap_a_to_b(&mut self, pool: &mut Pool, a_amount: f64) -> Result<(), String> {
 
         let mut liquidity = 0;
 
@@ -243,7 +248,7 @@ impl Account {
                     let mut curret_tick_index = pool.current_tick_index;
 
                     let next_tick_opinion: Option<&mut Tick> =
-                        get_tick(&mut pool, curret_tick_index);
+                        get_tick(pool, curret_tick_index);
 
                     if let Some(mut next_tick) = next_tick_opinion {
                         liquidity = next_tick.liquidity_gross;
@@ -265,7 +270,7 @@ impl Account {
                 }
             }
         }
-        Ok(self)
+        Ok(())
     }
 }
 
@@ -291,7 +296,7 @@ fn get_random_token_adddress() -> String {
 fn main() {
     let mut account = Account::new(1000 as f64, 1000 as f64);
     let mut pool = Pool::new();
-    Position::new(pool, account, 11, 10, 10);
-    // account.swap_a_to_b(pool, 1 as f64);
-    // println!("{:?}", account.a_balance);
+    Position::new(&mut pool, &mut account, 19, 10, 100000);
+    account.swap_a_to_b(&mut pool, 100 as f64);
+    println!("{:?}", account);
 }
