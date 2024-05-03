@@ -193,7 +193,7 @@ impl Account {
         }
     }
 
-    fn swap_a_to_b(&mut self, pool: &mut Pool, a_amount: f64) -> Result<(), String> {
+    fn swap_b_to_a(&mut self, pool: &mut Pool, b_amount: f64) -> Result<(), String> {
         let mut liquidity = 0;
 
         let tick_opinion: Option<&mut Tick> = pool
@@ -209,32 +209,32 @@ impl Account {
             return Err("not enough liquidity".to_string());
         }
 
-        let mut remaining_a_amount = a_amount;
+        let mut remaining_a_amount = b_amount;
 
         while remaining_a_amount > 0 as f64 {
-            let target_sqrt_price: f64 =
-                liquidity as f64 / (remaining_a_amount + liquidity as f64 / pool.sqrt_price);
+
+            let target_sqrt_price: f64 = pool.sqrt_price + remaining_a_amount / liquidity as f64;
             let mut next_tick_sqrt_price: f64 = get_sqrt_price_at_tick(pool.current_tick_index + 1);
 
             if target_sqrt_price <= next_tick_sqrt_price {
-                let delta_y: f64 = liquidity as f64 * (target_sqrt_price - pool.sqrt_price);
-                let delta_x: f64 = liquidity as f64 * (1 as f64 / target_sqrt_price - 1 as f64 / pool.sqrt_price);
-                let delta_x: f64 = remaining_a_amount;
-                self.a_balance -= delta_x;
-                self.b_balance -= delta_y;
+                let delta_x: f64 = liquidity as f64 * (target_sqrt_price - pool.sqrt_price);
+                let delta_y: f64 = liquidity as f64 * (1 as f64 / target_sqrt_price - 1 as f64 / pool.sqrt_price);
+                // let delta_x: f64 = remaining_a_amount;
+                self.a_balance += delta_x;
+                self.b_balance += delta_y;
                 pool.sqrt_price = target_sqrt_price;
-                remaining_a_amount -= delta_x;
+                remaining_a_amount -= delta_y;
                 break;
             } else {
                 // next_tick_sqrt_priceを完全に超えたらtickを更新する。
                 if pool.bitmap[(pool.current_tick_index + 1) as usize] == 1 {
-                    let mut delta_y: f64 =
+                    let mut delta_x: f64 =
                         liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
-                    let mut delta_x: f64 = liquidity as f64
+                    let mut delta_y: f64 = liquidity as f64
                         * (1 as f64 / next_tick_sqrt_price - 1 as f64 / pool.sqrt_price);
 
                     // println!("{:?}", delta_x);
-                    remaining_a_amount += delta_x;
+                    remaining_a_amount -= delta_y;
 
                     pool.current_tick_index = pool.current_tick_index + 1;
                     pool.sqrt_price = next_tick_sqrt_price;
@@ -254,12 +254,11 @@ impl Account {
                         break;
                     }
                 } else {
-                    let delta_y: f64 = liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
-                    let delta_x: f64 = liquidity as f64
+                    let delta_x: f64 = liquidity as f64 * (next_tick_sqrt_price - pool.sqrt_price);
+                    let delta_y: f64 = liquidity as f64
                         * (1 as f64 / next_tick_sqrt_price - 1 as f64 / pool.sqrt_price);
 
-                    // println!("{:?}", delta_x);
-                    remaining_a_amount += delta_x;
+                    remaining_a_amount -= delta_y;
 
                     self.a_balance += delta_x;
                     self.b_balance += delta_y;
@@ -292,14 +291,18 @@ fn get_random_token_adddress() -> String {
 }
 
 fn main() {
-    let mut account = Account::new(10000 as f64, 10000 as f64);
+    let mut account = Account::new(100000000 as f64, 100000000 as f64);
     let mut pool = Pool::new();
     // Position::new(&mut pool, &mut account, 19, 10, 100000);
-    Position::new(&mut pool, &mut account, 11, 0, 100);
+    Position::new(&mut pool, &mut account, 11, 0, 1);
     println!("{:?}", account);
-    Position::new(&mut pool, &mut account, 3, 0, 100);
+    println!("{:?}", pool);
+    Position::new(&mut pool, &mut account, 3, 0, 1);
     println!("{:?}", account);
-    account.swap_a_to_b(&mut pool, 1000 as f64);
+    account.swap_b_to_a(&mut pool, 1000 as f64);
     println!("{:?}", account);
+    println!("{:?}", pool);
     // println!("{:?}", pool);
 }
+
+// INFO: priceが上がる向きとxとyの増減、の関係性。またプールとaccountのbalanceの向きが分かっていない。
